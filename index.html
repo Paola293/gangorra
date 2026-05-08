@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equilíbrio Físico Realista</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- PARÂMETROS ---
+    const barWidth = 750;
+    const barHeight = 15;
+    const hexRadius = 70; // Hexágono grande como solicitado
+    
+    // Variáveis de Estado
+    let time = 0;
+    let tiltAngle = 0;
+    let hexX = 0;          // Posição na barra (-width/2 a width/2)
+    let hexVel = 0;        // Velocidade linear
+    let hexRotation = 0;   // Rotação visual
+
+    // FÍSICA (Ajuste fino do equilíbrio)
+    const gravity = 0.5;   // Sensibilidade à inclinação
+    const friction = 0.98; // Atrito superficial (impede que ele deslize como gelo)
+    const swingSpeed = 0.04; // Velocidade da gangorra
+
+    function drawHexagon(radius) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI) / 3;
+            const x = radius * Math.cos(angle);
+            const y = radius * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'white';
+        ctx.fill();
+    }
+
+    function update() {
+        // 1. Movimento da Gangorra
+        time += swingSpeed;
+        tiltAngle = Math.sin(time) * 0.45; // Oscilação suave
+
+        // 2. FÍSICA DA BOLA (O Coração do Equilíbrio)
+        // A força é o seno do ângulo: quanto mais inclinado, mais acelera.
+        // Se a barra inclina para a direita (tiltAngle > 0), hexVel aumenta.
+        let accel = Math.sin(tiltAngle) * gravity;
+        
+        hexVel += accel;
+        hexVel *= friction; // Simula a resistência da rolagem
+        hexX += hexVel;
+
+        // 3. ROTAÇÃO FÍSICA
+        // A rotação é proporcional ao deslocamento para parecer que está rolando.
+        hexRotation += (hexVel / hexRadius);
+
+        // 4. LIMITES (Para não cair da barra)
+        const limit = (barWidth / 2) - (hexRadius * 0.8);
+        if (hexX > limit) {
+            hexX = limit;
+            hexVel *= -0.3; // Rebate levemente (perda de energia)
+        } else if (hexX < -limit) {
+            hexX = -limit;
+            hexVel *= -0.3;
+        }
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        update();
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(tiltAngle);
+
+        // Barra Branca
+        ctx.fillStyle = 'white';
+        ctx.fillRect(-barWidth / 2, -barHeight / 2, barWidth, barHeight);
+
+        // Hexágono (Posicionamento dinâmico)
+        ctx.save();
+        // O Y é fixo sobre a barra inclinada. 
+        // Adicionamos um pequeno balanço vertical baseado na rotação para simular os vértices.
+        const bump = Math.abs(Math.sin(hexRotation * 3)) * 10;
+        ctx.translate(hexX, -hexRadius - barHeight / 2 + (10 - bump));
+        ctx.rotate(hexRotation);
+        drawHexagon(hexRadius);
+        ctx.restore();
+
+        ctx.restore();
+
+        requestAnimationFrame(render);
+    }
+
+    render();
+</script>
+</body>
+</html>
